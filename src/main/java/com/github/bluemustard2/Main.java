@@ -25,6 +25,8 @@ import static com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.ne
 
 public class Main {
     protected static String line;
+    protected static boolean check = false;
+    protected static AudioSource source;
 
     public static void main(String[] args) {
         FallbackLoggerConfiguration.setDebug(true);
@@ -35,6 +37,12 @@ public class Main {
                 .login()
                 .join();
 
+        Optional<ServerVoiceChannel> channel = api.getServerVoiceChannelById(System.getenv("SERVER_ID"));
+
+        if (channel.isEmpty()){
+            System.exit(1);
+        }
+
         AudioPlayerManager playerManager = new DefaultAudioPlayerManager();
         playerManager.registerSourceManager(new YoutubeAudioSourceManager());
         AudioPlayer player = playerManager.createPlayer();
@@ -42,7 +50,7 @@ public class Main {
         api.addMessageCreateListener(event -> {
             String[] messageContent = event.getMessageContent().split(" ");
 
-            if (messageContent[0].equalsIgnoreCase("!play")) {
+            if (messageContent[0].equalsIgnoreCase("!play") && check) {
 
                 List<String> searchTerms = Arrays.asList(messageContent).subList(1, messageContent.length);
 
@@ -59,20 +67,25 @@ public class Main {
                     e.printStackTrace();
                 }
 
-                Optional<ServerVoiceChannel> channel = api.getServerVoiceChannelById(System.getenv("SERVER_ID"));
+                check = true;
 
-                if (channel.isPresent()){
+                ServerVoiceChannel unwrapped = channel.get();
 
-                    ServerVoiceChannel unwrapped = channel.get();
-
-                    unwrapped.getId();
-                    unwrapped.connect().thenAccept(audioConnection -> {
-                        AudioSource source = new LavaplayerAudioSource(api, player);
-                        audioConnection.setAudioSource(source);
-                    }).exceptionally(e -> {
-                        e.printStackTrace();
-                        return null;
-                    });
+                unwrapped.getId();
+                unwrapped.connect().thenAccept(audioConnection -> {
+                if (!source.hasNextFrame()){
+                    source = new LavaplayerAudioSource(api, player);
+                    audioConnection.setAudioSource(source);
+                    audioConnection.addAudioSourceFinishedListener(event1 -> {
+                        source.getNextFrame();
+                    });}
+                else{
+                    // add to queue
+                }
+                }).exceptionally(e -> {
+                    e.printStackTrace();
+                    return null;
+                });
 
                 playerManager.loadItem(line, new AudioLoadResultHandler() {
                     @Override
@@ -97,7 +110,6 @@ public class Main {
                         e.printStackTrace();
                     }
                 });
-                }
             }
             else if (messageContent[0].equalsIgnoreCase("!stop")){
                 player.stopTrack();
