@@ -25,7 +25,6 @@ import static com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.ne
 
 public class Main {
     protected static String line;
-    protected static boolean check = false;
     protected static AudioSource source;
 
     public static void main(String[] args) {
@@ -37,12 +36,6 @@ public class Main {
                 .login()
                 .join();
 
-        Optional<ServerVoiceChannel> channel = api.getServerVoiceChannelById(System.getenv("SERVER_ID"));
-
-        if (channel.isEmpty()){
-            System.exit(1);
-        }
-
         AudioPlayerManager playerManager = new DefaultAudioPlayerManager();
         playerManager.registerSourceManager(new YoutubeAudioSourceManager());
         AudioPlayer player = playerManager.createPlayer();
@@ -50,42 +43,23 @@ public class Main {
         api.addMessageCreateListener(event -> {
             String[] messageContent = event.getMessageContent().split(" ");
 
-            if (messageContent[0].equalsIgnoreCase("!play") && check) {
+            line = YouTubeSearch.Search(messageContent);
 
-                List<String> searchTerms = Arrays.asList(messageContent).subList(1, messageContent.length);
+            if (messageContent[0].equalsIgnoreCase("!play")) {
 
-                try {
-                    YouTube yt = new YouTube.Builder(newTrustedTransport(), new JacksonFactory(), null)
-                            .setApplicationName("BotCast")
-                            .build();
+                Optional<ServerVoiceChannel> channel = api.getServerVoiceChannelById(System.getenv("SERVER_ID"));
 
-                    List<SearchResult> list = yt.search().list(Collections.singletonList("snippet")).setQ(Arrays.toString(searchTerms.toArray()).replace("[", "").replace("]", "")).setKey(System.getenv("YOUTUBE_API_KEY")).execute().getItems();
+                if (channel.isPresent()){
+                    ServerVoiceChannel unwrapped = channel.get();
 
-                    line = linkGenerator(list);
-
-                } catch (GeneralSecurityException | IOException e) {
-                    e.printStackTrace();
-                }
-
-                check = true;
-
-                ServerVoiceChannel unwrapped = channel.get();
-
-                unwrapped.getId();
-                unwrapped.connect().thenAccept(audioConnection -> {
-                if (!source.hasNextFrame()){
-                    source = new LavaplayerAudioSource(api, player);
-                    audioConnection.setAudioSource(source);
-                    audioConnection.addAudioSourceFinishedListener(event1 -> {
-                        source.getNextFrame();
-                    });}
-                else{
-                    // add to queue
-                }
-                }).exceptionally(e -> {
-                    e.printStackTrace();
-                    return null;
-                });
+                    unwrapped.getId();
+                    unwrapped.connect().thenAccept(audioConnection -> {
+                        source = new LavaplayerAudioSource(api, player);
+                        audioConnection.setAudioSource(source);
+                    }).exceptionally(e -> {
+                        e.printStackTrace();
+                        return null;
+                    });
 
                 playerManager.loadItem(line, new AudioLoadResultHandler() {
                     @Override
@@ -110,6 +84,7 @@ public class Main {
                         e.printStackTrace();
                     }
                 });
+                }
             }
             else if (messageContent[0].equalsIgnoreCase("!stop")){
                 player.stopTrack();
@@ -121,22 +96,5 @@ public class Main {
                 player.setPaused(false);
             }
         });
-    }
-
-    public static String linkGenerator (List<SearchResult> list){
-        String iD = list.toString().replace("\"", "").replace("}", "");
-        String[] listTerms = iD.split(",");
-        String line = null;
-
-        for (String blank : listTerms){
-            if (blank.contains("videoId")) {
-                line = blank.substring(blank.indexOf(":")+1);
-                break;
-            }
-        }
-
-        line = "https://youtube.com/watch?v=" + line;
-
-        return line;
     }
 }
