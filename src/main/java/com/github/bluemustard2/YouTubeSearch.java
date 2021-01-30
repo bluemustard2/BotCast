@@ -13,15 +13,14 @@ import java.util.List;
 import static com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.newTrustedTransport;
 
 public class YouTubeSearch {
-
-    public static String linkGenerator (List<SearchResult> list){
+    public static String linkGenerator(List<SearchResult> list) {
         String iD = list.toString().replace("\"", "").replace("}", "");
         String[] listTerms = iD.split(",");
         String line = null;
 
-        for (String blank : listTerms){
+        for (String blank : listTerms) {
             if (blank.contains("videoId")) {
-                line = blank.substring(blank.indexOf(":")+1);
+                line = blank.substring(blank.indexOf(":") + 1);
                 break;
             }
         }
@@ -31,7 +30,7 @@ public class YouTubeSearch {
         return line;
     }
 
-    public static String Search (String[] messageContent) {
+    public static String search(String[] messageContent) {
         List<String> searchTerms = Arrays.asList(messageContent).subList(1, messageContent.length);
 
         try {
