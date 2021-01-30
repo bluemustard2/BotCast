@@ -24,40 +24,41 @@ public class PlayerManager {
     public PlayerManager(Main main) {
         this.main = main;
 
-        // create a queue object
+        // Create a queue object
         trackQueue = new ArrayDeque<>();
 
-        // create the backend stuff for LavaPlayer
+        // Create LavaPlayer backend
         backend = new DefaultAudioPlayerManager();
         backend.registerSourceManager(new YoutubeAudioSourceManager());
 
-        // create the actual Player and add a Listener to play the next track in the queue, if the queue is not empty.
+        // Create the Player and add a Listener
+        // If queue isn't empty, it will play the next track in the queue
         player = backend.createPlayer();
         player.addListener(event -> {
             // is the audio event we got a track ending?
             if (event instanceof TrackEndEvent) {
                 TrackEndEvent endEvent = (TrackEndEvent) event;
 
-                // was it ended forcefully or did it naturally finish the song?
+                // Check if track was ended by user or the inevitable passage of time
                 if (endEvent.endReason == AudioTrackEndReason.FINISHED) {
 
-                    // get the next track in the queue, if there is none dip out
+                    // Get next track in queue; if there isn't one, exit
                     AudioTrack nextTrack = trackQueue.poll();
                     if (nextTrack == null) {
                         return;
                     }
 
-                    // play the next track
+                    // Play next track
                     playTrack(nextTrack);
                 }
             }
         });
 
-        // create the audio source that we will send to Discord. This is automatically linked to whatever the player
-        // is doing
+        // Create an audio source for Discord
+        // Automatically linked to whatever the player is doing
         audioSource = new LavaPlayerAudioSource(main.getDiscordApi(), player);
 
-        // create the handler that deals with results loaded from YouTube
+        // Create a handler to deal with YouTube results
         loadResultHandler = new CoolAudioLoadResultHandler(main, this);
     }
 
@@ -67,15 +68,20 @@ public class PlayerManager {
     }
 
     public boolean isCurrentlyPlaying() {
-        // how might we check if it's currently playing something?
-        // don't overthink it
-        throw new RuntimeException("Not yet implemented");
+        // Check if player is currently playing something
+        return player.isPaused();
     }
 
     public void playTrack(AudioTrack track) {
-        // play the given track plz
-        // if there is already something playing, add it to the queue instead!
-        throw new RuntimeException("Not yet implemented");
+        // Play given track
+        // If something else is playing, add new track to the queue
+
+        if (!isCurrentlyPlaying()){
+            trackQueue.add(track);
+        }
+        else {
+            player.playTrack(track);
+        }
     }
 
     /**
@@ -97,23 +103,26 @@ public class PlayerManager {
     }
 
     public void resumePlaying() {
-        // start playing again!!!!! this assumes it was paused before.
-        throw new RuntimeException("Not yet implemented");
+        // Resume a paused track
+        player.setPaused(false);
     }
 
     public void pausePlaying() {
-        // stop playing immediately!!!!!!!!!! or puppies die.
-        throw new RuntimeException("Not yet implemented");
+        // Pause current track
+        player.setPaused(true);
     }
 
     public void clearQueue() {
-        // clear the queue so that nothing else will play after the current song is done playing
-        throw new RuntimeException("Not yet implemented");
+        // Clear the queue
+        trackQueue.clear();
     }
 
     public void skipSong() {
-        // skip the current song, if there are no more songs stop playing
-        throw new RuntimeException("Not yet implemented");
+        // Skip current song, stop if no other songs remain
+        trackQueue.pop();
+        if (trackQueue.peek() == null){
+            System.out.println("No more songs left to play!");
+        }
     }
 
     /**

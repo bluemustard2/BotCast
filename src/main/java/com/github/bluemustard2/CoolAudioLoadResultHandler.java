@@ -19,10 +19,10 @@ public class CoolAudioLoadResultHandler implements AudioLoadResultHandler {
     @Override
     public void trackLoaded(AudioTrack track) {
         if (playerManager.isCurrentlyPlaying()) {
-            // currently playing, add track to queue
+            // If currently playing, add track to queue
             playerManager.addTrackToQueue(track);
         } else {
-            // nothing playing, play track now
+            // Nothing's playing, go ahead
             playerManager.playTrack(track);
         }
     }

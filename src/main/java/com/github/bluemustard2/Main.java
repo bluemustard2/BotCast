@@ -29,8 +29,8 @@ public class Main {
             throw new RuntimeException("Failed to find command channel or music channel. Check the IDs.");
         }
 
-        // connect to the voice channel as soon as we log in, and dip the fuck out if it failed
-        // because we are useless if we don't have a voice :'(
+        // Connect to the voice channel once we log in
+        // Exit if connection fails (for we are useless if we don't have a voice)
         try {
             musicChannel.connect()
                     .thenAccept(connection -> connection.setAudioSource(playerManager.getAudioSource()))
