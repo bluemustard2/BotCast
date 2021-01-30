@@ -1,5 +1,0 @@
-com/github/bluemustard2/LavaplayerAudioSource.java
- com.github.bluemustard2.LavaplayerAudioSource
-com/github/bluemustard2/Main.java
- com.github.bluemustard2.Main
- com.github.bluemustard2.Main$1
