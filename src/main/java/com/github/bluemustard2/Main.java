@@ -1,130 +1,68 @@
 package com.github.bluemustard2;
 
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.youtube.YouTube;
-import com.google.api.services.youtube.model.SearchResult;
-import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
-import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioSourceManager;
-import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import org.javacord.api.DiscordApi;
-import org.javacord.api.DiscordApiBuilder;
-import org.javacord.api.audio.AudioSource;
+import org.javacord.api.entity.channel.ServerTextChannel;
 import org.javacord.api.entity.channel.ServerVoiceChannel;
 import org.javacord.api.util.logging.FallbackLoggerConfiguration;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-import java.util.*;
-
-import static com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.newTrustedTransport;
+import java.util.Arrays;
+import java.util.List;
 
 public class Main {
-    protected static String line;
-
     public static void main(String[] args) {
         FallbackLoggerConfiguration.setDebug(true);
         FallbackLoggerConfiguration.setTrace(true);
 
-        DiscordApi api = new DiscordApiBuilder()
-                .setToken(System.getenv("QUOTE_BOT_TOKEN"))
-                .login()
-                .join();
+        new Main().run();
+    }
 
-        AudioPlayerManager playerManager = new DefaultAudioPlayerManager();
-        playerManager.registerSourceManager(new YoutubeAudioSourceManager());
-        AudioPlayer player = playerManager.createPlayer();
+    private DiscordApi discordApi;
+    private PlayerManager playerManager;
+    private ServerTextChannel commandChannel;
 
-        api.addMessageCreateListener(event -> {
-            String[] messageContent = event.getMessageContent().split(" ");
+    private void run() {
+        discordApi = new DiscordManager().logIn();
 
-            if (messageContent[0].equalsIgnoreCase("!play")) {
+        commandChannel = discordApi.getServerTextChannelById(System.getenv("COMMAND_CHANNEL_ID")).orElse(null);
+        ServerVoiceChannel musicChannel = discordApi.getServerVoiceChannelById(System.getenv("MUSIC_CHANNEL_ID")).orElse(null);
+        if (commandChannel == null || musicChannel == null) {
+            throw new RuntimeException("Failed to find command channel or music channel. Check the IDs.");
+        }
 
-                List<String> searchTerms = Arrays.asList(messageContent).subList(1, messageContent.length);
+        // connect to the voice channel as soon as we log in, and dip the fuck out if it failed
+        // because we are useless if we don't have a voice :'(
+        try {
+            musicChannel.connect()
+                    .thenAccept(connection -> connection.setAudioSource(playerManager.getAudioSource()))
+                    .join();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to connect to the voice channel.");
+        }
 
-                try {
-                    YouTube yt = new YouTube.Builder(newTrustedTransport(), new JacksonFactory(), null)
-                            .setApplicationName("BotCast")
-                            .build();
+        playerManager = new PlayerManager(this);
 
-                    List<SearchResult> list = yt.search().list(Collections.singletonList("snippet")).setQ(Arrays.toString(searchTerms.toArray()).replace("[", "").replace("]", "")).setKey(System.getenv("YOUTUBE_API_KEY")).execute().getItems();
+        discordApi.addMessageCreateListener(event -> {
+            List<String> messageParts = Arrays.asList(event.getMessage().getContent().split(" "));
 
-                    line = linkGenerator(list);
-
-                } catch (GeneralSecurityException | IOException e) {
-                    e.printStackTrace();
-                }
-
-                Optional<ServerVoiceChannel> channel = api.getServerVoiceChannelById(System.getenv("SERVER_ID"));
-
-                if (channel.isPresent()){
-
-                    ServerVoiceChannel unwrapped = channel.get();
-
-                    unwrapped.getId();
-                    unwrapped.connect().thenAccept(audioConnection -> {
-                        AudioSource source = new LavaplayerAudioSource(api, player);
-                        audioConnection.setAudioSource(source);
-                    }).exceptionally(e -> {
-                        e.printStackTrace();
-                        return null;
-                    });
-
-                playerManager.loadItem(line, new AudioLoadResultHandler() {
-                    @Override
-                    public void trackLoaded(AudioTrack track) {
-                        player.playTrack(track);
-                    }
-
-                    @Override
-                    public void playlistLoaded(AudioPlaylist playlist) {
-                        for (AudioTrack track : playlist.getTracks()){
-                            player.playTrack(track);
-                        }
-                    }
-
-                    @Override
-                    public void noMatches() {
-                        System.out.println("Song could not be found!");
-                    }
-
-                    @Override
-                    public void loadFailed(FriendlyException e) {
-                        e.printStackTrace();
-                    }
-                });
-                }
-            }
-            else if (messageContent[0].equalsIgnoreCase("!stop")){
-                player.stopTrack();
-            }
-            else if (messageContent[0].equalsIgnoreCase("!pause")){
-                player.setPaused(true);
-            }
-            else if (messageContent[0].equalsIgnoreCase("!resume")){
-                player.setPaused(false);
+            String command = messageParts.get(0);
+            if (command.equalsIgnoreCase("!play")) {
+                playerManager.searchForAndQueueSong(messageParts.subList(1, messageParts.size()));
+            } else if (command.equalsIgnoreCase("!stop")) {
+                playerManager.clearQueue();
+                playerManager.skipSong();
+            } else if (command.equalsIgnoreCase("!pause")) {
+                playerManager.pausePlaying();
+            } else if (command.equalsIgnoreCase("!resume")) {
+                playerManager.resumePlaying();
             }
         });
     }
 
-    public static String linkGenerator (List<SearchResult> list){
-        String iD = list.toString().replace("\"", "").replace("}", "");
-        String[] listTerms = iD.split(",");
-        String line = null;
+    public DiscordApi getDiscordApi() {
+        return discordApi;
+    }
 
-        for (String blank : listTerms){
-            if (blank.contains("videoId")) {
-                line = blank.substring(blank.indexOf(":")+1);
-                break;
-            }
-        }
-
-        line = "https://youtube.com/watch?v=" + line;
-
-        return line;
+    public ServerTextChannel getCommandChannel() {
+        return commandChannel;
     }
 }
