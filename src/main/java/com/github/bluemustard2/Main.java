@@ -54,6 +54,8 @@ public class Main {
                 playerManager.pausePlaying();
             } else if (command.equalsIgnoreCase("!resume")) {
                 playerManager.resumePlaying();
+            } else if (command.equalsIgnoreCase("!skip")) {
+                playerManager.skipSong();
             }
         });
     }

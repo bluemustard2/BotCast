@@ -44,10 +44,10 @@ public class PlayerManager {
 
                     // Get next track in queue; if there isn't one, exit
                     AudioTrack nextTrack = trackQueue.poll();
-                    if (nextTrack == null) {
-                        return;
+                    if (nextTrack != null) {
+                        player.playTrack(nextTrack);
                     }
-
+ 
                     // Play next track
                     playTrack(nextTrack);
                 }
@@ -120,9 +120,9 @@ public class PlayerManager {
     public void skipSong() {
         // Skip current song, stop if no other songs remain
         player.stopTrack();
-        trackQueue.poll();
-        if (trackQueue.peek() == null){
-            System.out.println("No more songs left to play!");
+        AudioTrack nextSong = trackQueue.poll();
+        if (nextSong != null){
+            player.playTrack(nextSong);
         }
     }
 
