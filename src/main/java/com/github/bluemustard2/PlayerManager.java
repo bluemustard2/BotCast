@@ -69,14 +69,14 @@ public class PlayerManager {
 
     public boolean isCurrentlyPlaying() {
         // Check if player is currently playing something
-        return player.isPaused();
+        return !player.isPaused();
     }
 
     public void playTrack(AudioTrack track) {
         // Play given track
         // If something else is playing, add new track to the queue
 
-        if (!isCurrentlyPlaying()){
+        if (isCurrentlyPlaying()){
             trackQueue.add(track);
         }
         else {
@@ -119,7 +119,8 @@ public class PlayerManager {
 
     public void skipSong() {
         // Skip current song, stop if no other songs remain
-        trackQueue.pop();
+        player.stopTrack();
+        trackQueue.poll();
         if (trackQueue.peek() == null){
             System.out.println("No more songs left to play!");
         }
