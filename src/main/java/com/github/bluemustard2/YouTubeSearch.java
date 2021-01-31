@@ -27,6 +27,8 @@ public class YouTubeSearch {
 
         line = "https://youtube.com/watch?v=" + line;
 
+        System.out.println("Found link: " + line);
+
         return line;
     }
 

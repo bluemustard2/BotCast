@@ -1,11 +1,14 @@
 package com.github.bluemustard2;
 
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.ServerTextChannel;
 import org.javacord.api.entity.channel.ServerVoiceChannel;
 import org.javacord.api.util.logging.FallbackLoggerConfiguration;
 
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.List;
 
 public class Main {
@@ -19,12 +22,14 @@ public class Main {
     private DiscordApi discordApi;
     private PlayerManager playerManager;
     private ServerTextChannel commandChannel;
+    private ServerVoiceChannel musicChannel;
 
     private void run() {
         discordApi = new DiscordManager().logIn();
-
+        playerManager = new PlayerManager(this);
         commandChannel = discordApi.getServerTextChannelById(System.getenv("COMMAND_CHANNEL_ID")).orElse(null);
-        ServerVoiceChannel musicChannel = discordApi.getServerVoiceChannelById(System.getenv("MUSIC_CHANNEL_ID")).orElse(null);
+        musicChannel = discordApi.getServerVoiceChannelById(System.getenv("MUSIC_CHANNEL_ID")).orElse(null);
+
         if (commandChannel == null || musicChannel == null) {
             throw new RuntimeException("Failed to find command channel or music channel. Check the IDs.");
         }
@@ -36,26 +41,49 @@ public class Main {
                     .thenAccept(connection -> connection.setAudioSource(playerManager.getAudioSource()))
                     .join();
         } catch (Exception ex) {
+            ex.printStackTrace();
             throw new RuntimeException("Failed to connect to the voice channel.");
         }
-
-        playerManager = new PlayerManager(this);
 
         discordApi.addMessageCreateListener(event -> {
             List<String> messageParts = Arrays.asList(event.getMessage().getContent().split(" "));
 
             String command = messageParts.get(0);
             if (command.equalsIgnoreCase("!play")) {
+                event.getChannel().sendMessage("Adding song to play queue!");
                 playerManager.searchForAndQueueSong(messageParts.subList(1, messageParts.size()));
             } else if (command.equalsIgnoreCase("!stop")) {
+                event.getChannel().sendMessage("Stopping all playback including queued songs.");
                 playerManager.clearQueue();
                 playerManager.skipSong();
             } else if (command.equalsIgnoreCase("!pause")) {
+                event.getChannel().sendMessage("Pausing (if there is anything to pause!)");
                 playerManager.pausePlaying();
             } else if (command.equalsIgnoreCase("!resume")) {
+                event.getChannel().sendMessage("Unpausing (if there is anything to play!)");
                 playerManager.resumePlaying();
             } else if (command.equalsIgnoreCase("!skip")) {
+                event.getChannel().sendMessage("Skipping song!");
                 playerManager.skipSong();
+            } else if (command.equalsIgnoreCase("!np")) {
+                AudioTrack track = playerManager.getCurrentSong();
+                if (track == null) {
+                    event.getChannel().sendMessage("Nothing is currently playing.");
+                } else {
+                    AudioTrackInfo info = track.getInfo();
+                    event.getChannel().sendMessage(String.format("%s - %s", info.author, info.title));
+                }
+            } else if (command.equalsIgnoreCase("!queue")) {
+                Deque<AudioTrack> tracks = playerManager.getTrackQueue();
+                if (tracks.isEmpty()) {
+                    event.getChannel().sendMessage("Nothing is queued.");
+                } else {
+                    event.getChannel().sendMessage("Track Queue:");
+                    playerManager.getTrackQueue().forEach(track -> {
+                        AudioTrackInfo info = track.getInfo();
+                        event.getChannel().sendMessage(String.format("%s - %s", info.author, info.title));
+                    });
+                }
             }
         });
     }
@@ -66,5 +94,9 @@ public class Main {
 
     public ServerTextChannel getCommandChannel() {
         return commandChannel;
+    }
+
+    public ServerVoiceChannel getMusicChannel() {
+        return musicChannel;
     }
 }

@@ -27,7 +27,7 @@ public class LavaPlayerAudioSource extends AudioSourceBase {
 
     @Override
     public boolean hasFinished() {
-        return !hasNextFrame();
+        return false;
     }
 
     @Override

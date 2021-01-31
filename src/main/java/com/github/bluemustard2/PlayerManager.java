@@ -69,17 +69,15 @@ public class PlayerManager {
 
     public boolean isCurrentlyPlaying() {
         // Check if player is currently playing something
-        return !player.isPaused();
+        return getCurrentSong() != null;
     }
 
     public void playTrack(AudioTrack track) {
         // Play given track
         // If something else is playing, add new track to the queue
-
         if (isCurrentlyPlaying()){
             trackQueue.add(track);
-        }
-        else {
+        } else {
             player.playTrack(track);
         }
     }
@@ -133,6 +131,24 @@ public class PlayerManager {
      */
     public Main getMain() {
         return main;
+    }
+
+    /**
+     * Gets the Track queue so we can inspect it
+     *
+     * @return the track queue
+     */
+    public Deque<AudioTrack> getTrackQueue() {
+        return trackQueue;
+    }
+
+    /**
+     * Gets the track currently playing
+     *
+     * @return the current track
+     */
+    public AudioTrack getCurrentSong() {
+        return player.getPlayingTrack();
     }
 
     /**
