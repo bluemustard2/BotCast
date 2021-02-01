@@ -8,8 +8,10 @@ import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioSourceManager
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import org.javacord.api.audio.AudioSource;
+import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 
@@ -38,18 +40,12 @@ public class PlayerManager {
             // is the audio event we got a track ending?
             if (event instanceof TrackEndEvent) {
                 TrackEndEvent endEvent = (TrackEndEvent) event;
+                Log.info("Song just ended naturally");
 
-                // Check if track was ended by user or the inevitable passage of time
-                if (endEvent.endReason == AudioTrackEndReason.FINISHED) {
-
-                    // Get next track in queue; if there isn't one, exit
-                    AudioTrack nextTrack = trackQueue.poll();
-                    if (nextTrack != null) {
-                        player.playTrack(nextTrack);
-                    }
- 
-                    // Play next track
-                    playTrack(nextTrack);
+                // Check if end reason implies we should play the next queued track
+                if (endEvent.endReason.mayStartNext) {
+                    Log.info("Playing next song now.");
+                    playNextSongNow();
                 }
             }
         });
@@ -64,7 +60,15 @@ public class PlayerManager {
 
     // This is literally the same thing as you had in that giant if for playing a song
     public void searchForAndQueueSong(List<String> searchTerms) {
-        backend.loadItem(YouTubeSearch.search(searchTerms.toArray(String[]::new)), loadResultHandler);
+        Log.info("Searching for song with search terms: %s", searchTerms);
+        queueUrl(YouTubeSearch.search(searchTerms));
+    }
+
+    public void queueUrl(String url) {
+        if (url == null) return;
+
+        Log.info("Will play URL: %s", url);
+        backend.loadItem(url, loadResultHandler);
     }
 
     public boolean isCurrentlyPlaying() {
@@ -80,6 +84,16 @@ public class PlayerManager {
         } else {
             player.playTrack(track);
         }
+    }
+
+    public void playTrackNow(AudioTrack track) {
+        player.stopTrack();
+        player.playTrack(track);
+    }
+
+    public void stopAndClearQueue() {
+        clearQueue();
+        player.stopTrack();
     }
 
     /**
@@ -118,9 +132,16 @@ public class PlayerManager {
     public void skipSong() {
         // Skip current song, stop if no other songs remain
         player.stopTrack();
+        playNextSongNow();
+    }
+
+    public void playNextSongNow() {
+        Log.info("Polling for next song...");
+
         AudioTrack nextSong = trackQueue.poll();
         if (nextSong != null){
-            player.playTrack(nextSong);
+            Log.info("Playing next song: %s - %s", nextSong.getInfo().title, nextSong.getInfo().author);
+            playTrackNow(nextSong);
         }
     }
 

@@ -52,10 +52,12 @@ public class Main {
             if (command.equalsIgnoreCase("!play")) {
                 event.getChannel().sendMessage("Adding song to play queue!");
                 playerManager.searchForAndQueueSong(messageParts.subList(1, messageParts.size()));
+            } else if (command.equalsIgnoreCase("!playurl")) {
+                event.getChannel().sendMessage("Added song to play queue!");
+                playerManager.queueUrl(messageParts.get(1));
             } else if (command.equalsIgnoreCase("!stop")) {
                 event.getChannel().sendMessage("Stopping all playback including queued songs.");
-                playerManager.clearQueue();
-                playerManager.skipSong();
+                playerManager.stopAndClearQueue();
             } else if (command.equalsIgnoreCase("!pause")) {
                 event.getChannel().sendMessage("Pausing (if there is anything to pause!)");
                 playerManager.pausePlaying();

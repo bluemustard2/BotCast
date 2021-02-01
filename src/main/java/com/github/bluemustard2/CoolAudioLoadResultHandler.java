@@ -18,6 +18,8 @@ public class CoolAudioLoadResultHandler implements AudioLoadResultHandler {
 
     @Override
     public void trackLoaded(AudioTrack track) {
+        Log.info("Successfully loaded track: %s - %s", track.getInfo().title, track.getInfo().author);
+
         if (playerManager.isCurrentlyPlaying()) {
             // If currently playing, add track to queue
             playerManager.addTrackToQueue(track);
@@ -30,6 +32,8 @@ public class CoolAudioLoadResultHandler implements AudioLoadResultHandler {
     @Override
     public void playlistLoaded(AudioPlaylist playlist) {
         List<AudioTrack> tracks = playlist.getTracks();
+
+        Log.info("Successfully loaded playlist: %s", playlist.getName());
 
         if (playerManager.isCurrentlyPlaying()) {
             // currently playing a song, add all of the tracks to the queue to player later

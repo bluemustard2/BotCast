@@ -14,33 +14,26 @@ import static com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.ne
 
 public class YouTubeSearch {
     public static String linkGenerator(List<SearchResult> list) {
-        String iD = list.toString().replace("\"", "").replace("}", "");
-        String[] listTerms = iD.split(",");
-        String line = null;
+        SearchResult first = list.stream().findFirst().orElse(null);
+        if (first == null) return null;
 
-        for (String blank : listTerms) {
-            if (blank.contains("videoId")) {
-                line = blank.substring(blank.indexOf(":") + 1);
-                break;
-            }
-        }
-
-        line = "https://youtube.com/watch?v=" + line;
-
-        return line;
+        return String.format("https://youtube.com/watch?v=%s", first.getId().getVideoId());
     }
 
-    public static String search(String[] messageContent) {
-        List<String> searchTerms = Arrays.asList(messageContent).subList(1, messageContent.length);
-
+    public static String search(List<String> searchTerms) {
         try {
             YouTube yt = new YouTube.Builder(newTrustedTransport(), new JacksonFactory(), null)
                     .setApplicationName("BotCast")
                     .build();
 
-            List<SearchResult> list = yt.search().list(Collections.singletonList("snippet")).setQ(Arrays.toString(searchTerms.toArray()).replace("[", "").replace("]", "")).setKey(System.getenv("YOUTUBE_API_KEY")).execute().getItems();
-
-            return linkGenerator(list);
+            return linkGenerator(
+                    yt.search()
+                            .list(Collections.singletonList("snippet"))
+                            .setQ(String.join(" ", searchTerms))
+                            .setKey(System.getenv("YOUTUBE_API_KEY"))
+                            .execute()
+                            .getItems()
+            );
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
             return null;
